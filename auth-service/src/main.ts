@@ -1,7 +1,9 @@
+import { AppModule } from '@/app.module';
+import { HttpExceptionFilter } from '@/shared/filters/http-exception.filter';
+import { ErrorInterceptor } from '@/shared/interceptors/error.interceptor';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
-import { AppModule } from '@/app.module';
-import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const appContext = await NestFactory.createApplicationContext(AppModule);
@@ -24,6 +26,13 @@ async function bootstrap() {
       },
     },
   );
+
+  // Sử dụng filter toàn cục
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Sử dụng interceptor toàn cục
+  app.useGlobalInterceptors(new ErrorInterceptor());
+
   await app.listen();
 }
 bootstrap();
