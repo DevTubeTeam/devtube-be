@@ -28,10 +28,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
+      - name: Log in to Amazon ECR Public
+        run: |
+          aws ecr-public get-login-password \
+            | docker login --username AWS --password-stdin public.ecr.aws
+      
       - name: Create ECR repository if not exists
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -40,11 +41,12 @@ jobs:
           aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" \
             || aws ecr create-repository --repository-name "$ECR_REPOSITORY" --region "$AWS_REGION"
 
-      - name: Build and push Docker image to ECR
+      - name: Build and push Docker image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: auth-service
+          REPO_NAME: auth-service
           IMAGE_TAG: latest
+          ECR_PUBLIC_ALIAS: ${{ secrets.ECR_PUBLIC_ALIAS }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./auth-service
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          IMAGE_URI=public.ecr.aws/$ECR_PUBLIC_ALIAS/$REPO_NAME:$IMAGE_TAG
+          docker build -t $IMAGE_URI ./auth-service
+          docker push $IMAGE_URI
