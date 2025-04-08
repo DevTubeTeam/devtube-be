@@ -1,4 +1,4 @@
-name: Build
+name: Api Gateway Dockerize
 
 on:
   pull_request:

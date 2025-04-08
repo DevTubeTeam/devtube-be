@@ -1,4 +1,4 @@
-name: Build
+name: Video Service Build
 
 on:
   pull_request:
