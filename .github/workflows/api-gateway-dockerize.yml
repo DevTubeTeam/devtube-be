@@ -31,9 +31,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Log in to Amazon ECR Public
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          ECR_PUBLIC_ALIAS: ${{ secrets.ECR_PUBLIC_ALIAS }}
         run: |
-          aws ecr-public get-login-password \
-            | docker login --username AWS --password-stdin public.ecr.aws
+          aws ecr-public get-login-password --region $AWS_REGION \
+            | docker login --username AWS --password-stdin public.ecr.aws/$ECR_PUBLIC_ALIAS
       
       - name: Create ECR repository if not exists
         env:
