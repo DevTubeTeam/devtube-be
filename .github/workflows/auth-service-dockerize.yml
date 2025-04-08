@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - main
+    type: 
+      - closed
     paths:
       - 'auth-service/**'
       - '.github/workflows/auth-service-*.yml'
@@ -15,6 +17,7 @@ permissions:
 
 jobs:
   dockerize:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
