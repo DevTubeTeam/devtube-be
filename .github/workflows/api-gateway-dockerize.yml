@@ -40,10 +40,11 @@ jobs:
       
       - name: Create ECR repository if not exists
         env:
+          AWS_REGION: us-east-1
           ECR_REPOSITORY: api-gateway
         run: |
-          aws ecr-public describe-repositories --repository-names "$ECR_REPOSITORY" \
-            || aws ecr-public create-repository --repository-name "$ECR_REPOSITORY"
+          aws ecr-public describe-repositories --repository-names "$ECR_REPOSITORY" --region "$AWS_REGION" \
+            || aws ecr-public create-repository --repository-name "$ECR_REPOSITORY" --region "$AWS_REGION"
 
       - name: Build and push Docker image
         env:
