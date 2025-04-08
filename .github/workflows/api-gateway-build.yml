@@ -23,4 +23,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: cd api-gateway && yarn install 
       - run: cd api-gateway && yarn build

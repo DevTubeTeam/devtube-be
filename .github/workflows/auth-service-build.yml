@@ -23,4 +23,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: cd auth-service && yarn install 
       - run: cd auth-service && yarn build
