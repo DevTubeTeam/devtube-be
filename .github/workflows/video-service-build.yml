@@ -1,0 +1,27 @@
+name: Video Service Build
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'video-service/**'
+      - '.github/workflows/video-service.yml'
+
+permissions:
+  contents: read
+  checks: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: cd video-service && yarn install 
+      - run: cd video-service && yarn build

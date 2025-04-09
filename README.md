@@ -176,10 +176,6 @@ nest g controller <controller-name>
      yarn prisma generate --schema src/prisma/schema.prisma
      ```
 
-  5. Apply migrations to the database:
-     ```bash
-     npx prisma migrate dev
-     ``` 
 - **Code Formatting**: Use Prettier for consistent code formatting. Run `yarn format` to format the codebase.  
   - To automatically format code on save or format actions, install the Prettier extension in your editor and set it as the default formatter. 
 - **Linting**: Use ESLint to ensure code quality. Run `yarn lint` to check for linting issues.  
