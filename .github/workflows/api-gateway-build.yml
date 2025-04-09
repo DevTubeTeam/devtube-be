@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'api-gateway/**'
-      - '.github/workflows/api-gateway.yml'
+      - '.github/workflows/api-gateway*.yml'
 
 permissions:
   contents: read

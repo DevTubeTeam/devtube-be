@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'auth-service/**'
-      - '.github/workflows/auth-service.yml'
+      - '.github/workflows/auth-service-*.yml'
 
 permissions:
   contents: read
