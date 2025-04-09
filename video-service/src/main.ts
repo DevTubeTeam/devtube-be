@@ -25,5 +25,25 @@ async function bootstrap() {
     },
   );
   await app.listen();
+
+  //Run Video-Service with port : 3001
+
+  // // Kết nối microservice (RabbitMQ)
+  // app.connectMicroservice<MicroserviceOptions>({
+  //   transport: Transport.RMQ,
+  //   options: {
+  //     urls: [rabbitmqUrl],
+  //     queue: rabbitmqQueue,
+  //     queueOptions: {
+  //       durable: false,
+  //     },
+  //     persistent: true,
+  //   },
+  // });
+
+  // await app.startAllMicroservices(); // Khởi động microservice (RabbitMQ)
+  // await app.listen(3001); // Bật HTTP server để test Postman / Swagger
+  // console.log('🚀 Video Service is running on http://localhost:3001');
+  
 }
 bootstrap();
