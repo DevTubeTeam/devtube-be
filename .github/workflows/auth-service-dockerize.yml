@@ -1,23 +1,16 @@
 name: Auth Service Dockerize
 
 on:
-  pull_request:
-    branches:
-      - main
-    type: 
-      - closed
-    paths:
-      - 'auth-service/**'
-      - '.github/workflows/auth-service-*.yml'
+  push:
+    tags:
+      - 'auth-service-v*'  # Example: auth-service-v1.2.3
 
 permissions:
   contents: read
-  checks: write
   id-token: write
 
 jobs:
   dockerize:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -29,7 +22,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Log in to Amazon ECR Public
         env:
@@ -37,8 +30,8 @@ jobs:
           ECR_PUBLIC_ALIAS: ${{ secrets.ECR_PUBLIC_ALIAS }}
         run: |
           aws ecr-public get-login-password --region $AWS_REGION \
-            | docker login --username AWS --password-stdin public.ecr.aws/$ECR_PUBLIC_ALIAS
-      
+            | docker login --username AWS --password-stdin public.ecr.aws
+
       - name: Create ECR repository if not exists
         env:
           AWS_REGION: us-east-1
@@ -47,12 +40,13 @@ jobs:
           aws ecr-public describe-repositories --repository-names "$ECR_REPOSITORY" --region "$AWS_REGION" \
             || aws ecr-public create-repository --repository-name "$ECR_REPOSITORY" --region "$AWS_REGION"
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image with tag from Git
         env:
           REPO_NAME: auth-service
-          IMAGE_TAG: latest
           ECR_PUBLIC_ALIAS: ${{ secrets.ECR_PUBLIC_ALIAS }}
+          TAG_NAME: ${{ github.ref_name }}  # e.g. auth-service-v1.2.3
         run: |
-          IMAGE_URI=public.ecr.aws/$ECR_PUBLIC_ALIAS/$REPO_NAME:$IMAGE_TAG
+          VERSION=$(echo "$TAG_NAME" | sed 's/^auth-service-v//')
+          IMAGE_URI=public.ecr.aws/$ECR_PUBLIC_ALIAS/$REPO_NAME:$VERSION
           docker build -t $IMAGE_URI ./auth-service
           docker push $IMAGE_URI
