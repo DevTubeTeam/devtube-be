@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'video-service/**'
-      - '.github/workflows/video-service.yml'
+      - '.github/workflows/video-service-*.yml'
 
 permissions:
   contents: read
