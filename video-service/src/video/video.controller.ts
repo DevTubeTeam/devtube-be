@@ -1,77 +1,49 @@
-import { Controller, Get, Post, Put, Delete, Body, Query  } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Query } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { VideoService } from './video.service';
 import { Prisma } from '@prisma/client';
+import { CreateVideoDto } from './dto/create-video.dto';
+import { FindAllVideoDto } from './dto/find-all-video.dto';
+import { UpdateVideoDto } from './dto/update-video.dto';
 
 @Controller('video')
 export class VideoController {
   constructor(private readonly videoService: VideoService) { }
 
 
-  // @Post('video_create')
+  // CREATE
   @MessagePattern('video_create')
-  async create(@Body() data: {
-    title: string;
-    description?: string;
-    video_url: string;
-    thumbnail_url: string;
-    duration: number;
-    user_id?: string;
-    privacy?: 'public' | 'private' | 'unlisted';
-    status?: 'processing' | 'ready' | 'failed';
-  }) {
-    return this.videoService.create(data); //
+  @MessagePattern('video_create')
+  async create(@Body() data: CreateVideoDto) {
+    return this.videoService.create(data);
   }
 
-  // FIND ONE
-  // @Get('findOne')
   @MessagePattern('video_find_one')
-  async findOne(@Query() query: { id: string }) {
-    return this.videoService.findOne(query.id);
+  async findOne(@Body() data: { id: string }) {
+    return this.videoService.findOne(data.id);
   }
 
   // FIND ALL
-  // @Get('findAll')
   @MessagePattern('video_find_all')
-  async findAll(@Query() query: {
-    skip?: string;
-    take?: string;
-    user_id?: string;
-    privacy?: 'public' | 'private' | 'unlisted';
-    status?: 'processing' | 'ready' | 'failed';
-    search?: string;
-  }) {
+  async findAll(@Body() data: FindAllVideoDto) {
     const parsedQuery = {
-      ...query,
-      skip: query.skip ? parseInt(query.skip) : undefined,
-      take: query.take ? parseInt(query.take) : undefined,
+      ...data,
+      skip: data.skip ? parseInt(data.skip as any) : undefined,
+      take: data.take ? parseInt(data.take as any) : undefined,
     };
     return this.videoService.findAll(parsedQuery);
   }
 
   // UPDATE
-  // @Put('update')
   @MessagePattern('video_update')
-  async update(@Body() data: {
-    id: string;
-    updateData: {
-      title?: string;
-      description?: string;
-      video_url?: string;
-      thumbnail_url?: string;
-      duration?: number;
-      user_id?: string;
-      privacy?: 'public' | 'private' | 'unlisted';
-      status?: 'processing' | 'ready' | 'failed';
-    };
-  }) {
-    return this.videoService.update(data.id, data.updateData);
+  async update(@Body() data: UpdateVideoDto) {
+    return this.videoService.update(data);
   }
 
   // DELETE
   // @Delete('delete')
   @MessagePattern('video_delete')
-  async remove(@Query() query: { id: string }) {
-    return this.videoService.remove(query.id);
+  async remove(@Body() data: { id: string }) {
+    return this.videoService.remove(data.id);
   }
 }

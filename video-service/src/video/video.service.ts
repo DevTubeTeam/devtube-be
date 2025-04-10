@@ -2,6 +2,9 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { transformBigInt } from '@/utils/transformBigInt';
+import { CreateVideoDto } from './dto/create-video.dto';
+import { FindAllVideoDto } from './dto/find-all-video.dto';
+import { UpdateVideoDto } from './dto/update-video.dto';
 
 @Injectable()
 export class VideoService {
@@ -9,17 +12,7 @@ export class VideoService {
     private readonly prismaService: PrismaService, // Inject PrismaService vào AuthService
   ) { }
 
-  async create(data: {
-    title: string;
-    description?: string;
-    video_url: string;
-    thumbnail_url: string;
-    duration: number;
-    user_id?: string;
-    privacy?: 'public' | 'private' | 'unlisted';
-    status?: 'processing' | 'ready' | 'failed';
-  }) {
-
+  async create(data: CreateVideoDto) {
     const video = await this.prismaService.videos.create({ data });
     return transformBigInt(video);
   }
@@ -36,14 +29,7 @@ export class VideoService {
   }
 
   // FIND ALL
-  async findAll(query: {
-    skip?: number;
-    take?: number;
-    user_id?: string;
-    privacy?: 'public' | 'private' | 'unlisted';
-    status?: 'processing' | 'ready' | 'failed';
-    search?: string;
-  }) {
+  async findAll(query: FindAllVideoDto) {
     const { skip = 0, take = 10, user_id, privacy, status, search } = query;
 
     const videos = await this.prismaService.videos.findMany({
@@ -67,18 +53,12 @@ export class VideoService {
   }
 
   // UPDATE
-  async update(id: string, updateData: {
-    title?: string;
-    description?: string;
-    video_url?: string;
-    thumbnail_url?: string;
-    duration?: number;
-    user_id?: string;
-    privacy?: 'public' | 'private' | 'unlisted';
-    status?: 'processing' | 'ready' | 'failed';
-  }) {
+  async update(data: UpdateVideoDto) {
+    const { id, updateData } = data;
 
-    const existing = await this.prismaService.videos.findUnique({ where: { id } });
+    const existing = await this.prismaService.videos.findUnique({
+      where: { id },
+    });
 
     if (!existing) {
       throw new NotFoundException(`Video with id ${id} not found`);
