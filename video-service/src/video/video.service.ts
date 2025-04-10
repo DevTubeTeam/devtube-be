@@ -2,9 +2,9 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { transformBigInt } from '@/utils/transformBigInt';
-import { CreateVideoDto } from './dto/create-video.dto';
-import { FindAllVideoDto } from './dto/find-all-video.dto';
-import { UpdateVideoDto } from './dto/update-video.dto';
+import { CreateVideoRequest } from './requests/create-video.request';
+import { FindAllVideoRequest  } from './requests/find-all-video.request';
+import { UpdateVideoRequest  } from './requests/update-video.request';
 
 @Injectable()
 export class VideoService {
@@ -12,7 +12,7 @@ export class VideoService {
     private readonly prismaService: PrismaService, // Inject PrismaService vào AuthService
   ) { }
 
-  async create(data: CreateVideoDto) {
+  async create(data: CreateVideoRequest) {
     const video = await this.prismaService.videos.create({ data });
     return transformBigInt(video);
   }
@@ -29,7 +29,7 @@ export class VideoService {
   }
 
   // FIND ALL
-  async findAll(query: FindAllVideoDto) {
+  async findAll(query: FindAllVideoRequest) {
     const { skip = 0, take = 10, user_id, privacy, status, search } = query;
 
     const videos = await this.prismaService.videos.findMany({
@@ -53,7 +53,7 @@ export class VideoService {
   }
 
   // UPDATE
-  async update(data: UpdateVideoDto) {
+  async update(data: UpdateVideoRequest) {
     const { id, updateData } = data;
 
     const existing = await this.prismaService.videos.findUnique({

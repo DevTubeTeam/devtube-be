@@ -1,4 +1,4 @@
-export interface UpdateVideoDto {
+export class UpdateVideoRequest  {
     id: string;
     updateData: {
         title?: string;

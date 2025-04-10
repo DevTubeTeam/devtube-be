@@ -1,5 +1,4 @@
-// src/video/dto/create-video.dto.ts
-export class CreateVideoDto {
+export class CreateVideoRequest {
     title: string;
     description?: string;
     video_url: string;

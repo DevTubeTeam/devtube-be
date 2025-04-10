@@ -2,9 +2,9 @@ import { Controller, Get, Post, Put, Delete, Body, Query } from '@nestjs/common'
 import { MessagePattern } from '@nestjs/microservices';
 import { VideoService } from './video.service';
 import { Prisma } from '@prisma/client';
-import { CreateVideoDto } from './dto/create-video.dto';
-import { FindAllVideoDto } from './dto/find-all-video.dto';
-import { UpdateVideoDto } from './dto/update-video.dto';
+import { CreateVideoRequest } from './requests/create-video.request';
+import { FindAllVideoRequest  } from './requests/find-all-video.request';
+import { UpdateVideoRequest  } from './requests/update-video.request';
 
 @Controller('video')
 export class VideoController {
@@ -13,8 +13,7 @@ export class VideoController {
 
   // CREATE
   @MessagePattern('video_create')
-  @MessagePattern('video_create')
-  async create(@Body() data: CreateVideoDto) {
+  async create(@Body() data: CreateVideoRequest) {
     return this.videoService.create(data);
   }
 
@@ -25,7 +24,7 @@ export class VideoController {
 
   // FIND ALL
   @MessagePattern('video_find_all')
-  async findAll(@Body() data: FindAllVideoDto) {
+  async findAll(@Body() data: FindAllVideoRequest) {
     const parsedQuery = {
       ...data,
       skip: data.skip ? parseInt(data.skip as any) : undefined,
@@ -36,7 +35,7 @@ export class VideoController {
 
   // UPDATE
   @MessagePattern('video_update')
-  async update(@Body() data: UpdateVideoDto) {
+  async update(@Body() data: UpdateVideoRequest) {
     return this.videoService.update(data);
   }
 

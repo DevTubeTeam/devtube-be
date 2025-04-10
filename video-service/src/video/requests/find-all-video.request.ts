@@ -1,4 +1,4 @@
-export interface FindAllVideoDto {
+export class FindAllVideoRequest  {
     skip?: number;
     take?: number;
     user_id?: string;
