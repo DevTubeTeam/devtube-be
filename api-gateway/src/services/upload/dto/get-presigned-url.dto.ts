@@ -1,6 +1,5 @@
-export class GetPresignedUrlDto {
-  filename: string;
-  mimetype: string;
-  userId: string;
-  ư;
+export interface GetPresignedUrlDto {
+  fileName: string;
+  fileType: string;
+  idToken: string;
 }

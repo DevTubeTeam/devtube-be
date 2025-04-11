@@ -1,7 +1,9 @@
+import { RmqClientsModule } from '@/rmq-clients.module';
+import { UploadController } from '@/services/upload/upload.controller';
 import { Module } from '@nestjs/common';
-import { UploadController } from './upload.controller';
 
 @Module({
-  controllers: [UploadController]
+  controllers: [UploadController],
+  imports: [RmqClientsModule],
 })
 export class UploadModule {}
