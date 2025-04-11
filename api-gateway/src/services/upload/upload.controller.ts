@@ -9,8 +9,9 @@ export class UploadController {
     @Inject('UPLOAD_SERVICE') private readonly uploadClient: ClientProxy
   ) {}
 
-  @Post('presign')
+  @Post('presign-url')
   async getPresignedUrl(@Body() preSignedUrlDto: GetPresignedUrlDto) {
+    console.log('getPresignedUrl', preSignedUrlDto);
     return await lastValueFrom(
       this.uploadClient.send('get_presigned_url', preSignedUrlDto)
     );
