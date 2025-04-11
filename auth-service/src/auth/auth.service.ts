@@ -4,8 +4,9 @@ import {
 } from '@/auth/exceptions';
 import { NoRefreshTokenFoundException } from '@/auth/exceptions/no-refresh-token-found.exception';
 import {
-  AuthLoginResponse,
-  RefreshTokenResponse,
+  IAuthLoginResponse,
+  IExchangeCodeForTokenResponse,
+  IRefreshTokenResponse,
 } from '@/auth/interface/auth-response.interface';
 import { googleOAuthConfig } from '@/config/config';
 import { JwtPayload } from '@/jwt/interface/jwt.payload';
@@ -40,10 +41,10 @@ export class AuthService {
    */
   async handleGoogleCallback(
     code: string,
-  ): Promise<ServiceResponse<AuthLoginResponse>> {
-    const accessToken = await this.exchangeCodeForAccessToken(code);
+  ): Promise<ServiceResponse<IAuthLoginResponse>> {
+    const tokens = await this.exchangeCodeForAccessToken(code);
 
-    const userInfo = await this.getUserInfoFromGoogle(accessToken);
+    const userInfo = await this.getUserInfoFromGoogle(tokens.accessToken);
 
     console.log(userInfo);
 
@@ -113,6 +114,7 @@ export class AuthService {
         tokens: {
           accessToken: newAccessToken,
           refreshToken,
+          idToken: tokens.idToken,
         },
         user: {
           id: user.id,
@@ -125,7 +127,7 @@ export class AuthService {
   }
 
   /**
-   * Refresh Access Token
+   * 2. Refresh Access Token
    * - Nhận refresh_token từ client
    * - Giải mã và xác thực chữ ký của refresh_token
    * - Trích xuất userId (sub), jti từ payload
@@ -139,7 +141,7 @@ export class AuthService {
    */
   async refreshAccessToken(
     refreshToken: string,
-  ): Promise<ServiceResponse<RefreshTokenResponse>> {
+  ): Promise<ServiceResponse<IRefreshTokenResponse>> {
     const payload = this.jwtService.verifyRefreshToken(refreshToken);
 
     if (!payload) {
@@ -291,6 +293,33 @@ export class AuthService {
     };
   }
 
+  /**
+   * 5. Xử lý callback từ Google OAuth (silent login)
+   * - Nhận code từ Google gửi về
+   * - Gọi API của Google để lấy access_token (exchangeCodeForAccessToken)
+   * - Gọi API của Google để lấy thông tin người dùng
+   * - Kiểm tra xem người dùng đã tồn tại trong DB chưa
+   * - Nếu có thì update thông tin người dùng
+   * - Nếu không thì tạo mới người dùng
+   * - Tạo access_token và refresh_token cho người dùng
+   * - Lưu refresh_token vào DB (hashed)
+   * - Trả về access_token, refresh_token và thông tin người dùng
+   * - Nếu không có code thì trả về lỗi
+   * - Nếu có lỗi thì trả về lỗi
+   *
+   */
+  async handleGoogleSilentCallback(code: string): Promise<{ idToken: string }> {
+    const tokenResponse = await this.exchangeCodeForAccessToken(code);
+
+    if (!tokenResponse.idToken) {
+      throw new Error('No id_token returned from Google');
+    }
+
+    return {
+      idToken: tokenResponse.idToken,
+    };
+  }
+
   async revokeToken(
     jti: string,
     userId: string,
@@ -314,13 +343,15 @@ export class AuthService {
     return !!token;
   }
 
-  private async exchangeCodeForAccessToken(code: string): Promise<string> {
+  private async exchangeCodeForAccessToken(
+    code: string,
+  ): Promise<IExchangeCodeForTokenResponse> {
     const payload = new URLSearchParams();
 
     const { clientID, clientSecret, callbackURL, grantType } =
       googleOAuthConfig();
 
-    payload.append('code', code); // KHÔNG encodeURIComponent
+    payload.append('code', code);
     payload.append('client_id', clientID);
     payload.append('client_secret', clientSecret);
     payload.append('redirect_uri', callbackURL);
@@ -339,8 +370,10 @@ export class AuthService {
         ),
       );
 
-      console.log('Google OAuth response:', response.data);
-      return response.data.access_token;
+      return {
+        accessToken: response.data.access_token,
+        idToken: response.data.id_token,
+      };
     } catch (error) {
       if (error.response) {
         console.error('Google OAuth error response:', error.response.data);
@@ -351,7 +384,6 @@ export class AuthService {
     }
   }
 
-  // Lấy thông tin người dùng từ Google
   private async getUserInfoFromGoogle(accessToken: string): Promise<any> {
     const response = await firstValueFrom(
       this.httpService.get('https://www.googleapis.com/oauth2/v2/userinfo', {

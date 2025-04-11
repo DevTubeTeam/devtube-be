@@ -25,6 +25,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       inject: [ConfigService],
     },
   ],
-  exports: ['AUTH_SERVICE'],
+  exports: ['AUTH_SERVICE', 'VIDEO_SERVICE', 'UPLOAD_SERVICE'],
 })
 export class RmqClientsModule {}

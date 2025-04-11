@@ -1,5 +1,3 @@
-import { S3Client } from '@aws-sdk/client-s3';
-
 const rabbitmqConfig = () => ({
   rabbitmq: {
     url: process.env.RABBITMQ_URL,
@@ -7,14 +5,10 @@ const rabbitmqConfig = () => ({
   },
 });
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
-
 const bucketName = process.env.S3_BUCKET;
 
-export { bucketName, rabbitmqConfig, s3Client };
+const awsRegion = process.env.REGION;
+
+const roleArn = process.env.ROLE_ARN;
+
+export { awsRegion, bucketName, rabbitmqConfig, roleArn };
