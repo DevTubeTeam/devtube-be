@@ -13,8 +13,8 @@ export interface IAuthenticatedUser {
 }
 
 export interface IAuthLoginResponse {
-  tokens: AuthTokens;
-  user: AuthenticatedUser;
+  tokens: IAuthTokens;
+  user: IAuthenticatedUser;
 }
 
 export interface IRefreshTokenResponse {
