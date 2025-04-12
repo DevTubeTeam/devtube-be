@@ -17,9 +17,9 @@ The backend is organized into the following microservices:
 
 - Manages video metadata, including uploading, updating, and retrieving video information.
 
-3. **Processing Service**
+3. **Upload Service**
 
-- Handles video processing tasks such as transcoding and thumbnail generation.
+- Handles video upload tasks such as generate presigned-url.
 
 4. **API Gateway**
 

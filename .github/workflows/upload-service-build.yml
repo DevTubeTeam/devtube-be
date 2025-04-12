@@ -1,4 +1,4 @@
-name: Processing Service Build
+name: Upload Service Build
 
 on:
   pull_request:
