@@ -3,6 +3,7 @@ import { JwtPayload } from '@/jwt/interface/jwt.payload';
 export interface IAuthTokens {
   accessToken: string;
   refreshToken: string;
+  idToken: string;
 }
 
 export interface IAuthenticatedUser {
