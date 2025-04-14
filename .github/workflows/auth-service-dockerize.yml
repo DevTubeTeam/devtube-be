@@ -17,6 +17,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Get short commit SHA
+        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Print short SHA
+        run: echo "Short SHA is $SHORT_SHA"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -47,6 +53,6 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}  # e.g. auth-service-v1.2.3
         run: |
           VERSION=$(echo "$TAG_NAME" | sed 's/^auth-service-v//')
-          IMAGE_URI=public.ecr.aws/$ECR_PUBLIC_ALIAS/$REPO_NAME:$VERSION
+          IMAGE_URI=public.ecr.aws/$ECR_PUBLIC_ALIAS/$REPO_NAME:$VERSION-$SHORT_SHA
           docker build -t $IMAGE_URI ./auth-service
           docker push $IMAGE_URI
