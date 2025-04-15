@@ -6,6 +6,7 @@ import {
   Inject,
   Post,
   Query,
+  Redirect,
   Req,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
@@ -34,12 +35,12 @@ export class AuthController {
   @Post('refresh')
   @ApiResponse({
     status: 200,
-    description: 'Làm mới accessToken',
+    description: 'Refresh accessToken',
   })
   async refreshAccessToken(@Body() body: { refreshToken: string }) {
     const { refreshToken } = body;
     if (!refreshToken) {
-      return fail('Không tìm thấy refreshToken', 401);
+      return fail('RefreshToken Not Found', 401);
     }
 
     return await lastValueFrom(
@@ -50,14 +51,46 @@ export class AuthController {
   @Post('logout')
   @ApiResponse({
     status: 200,
-    description: 'Logout user và revoke refresh token',
+    description: 'User Logout and Invalidate Token',
   })
   async logout(@Req() req: Request) {
     const userId = req.body?.userId;
     if (!userId) {
-      return fail('Thiếu userId để logout', 400);
+      return fail('UserID Not Found', 400);
     }
 
     return await lastValueFrom(this.authClient.send('auth_logout', { userId }));
+  }
+
+  /**
+   * Redirect user to Google's silent login URL with prompt=none
+   * (User must have active Google session)
+   */
+  @Get('silent')
+  @Redirect()
+  forwardSilentGoogleLogin(): { url: string; statusCode: number } {
+    const query = new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID!,
+      redirect_uri: process.env.GOOGLE_SILENT_REDIRECT_URI!,
+      response_type: 'code',
+      scope: 'openid email profile',
+      prompt: 'none',
+    });
+
+    return {
+      url: `https://accounts.google.com/o/oauth2/v2/auth?${query.toString()}`,
+      statusCode: 302,
+    };
+  }
+
+  /**
+   * Callback handler after silent login
+   * Will forward code to auth-service to exchange for new id_token
+   */
+  @Get('silent/callback')
+  async forwardSilentGoogleCallback(@Query('code') code: string) {
+    return await lastValueFrom(
+      this.authClient.send('auth_google_silent_callback', { code })
+    );
   }
 }

@@ -1,33 +1,39 @@
 import { JwtPayload } from '@/jwt/interface/jwt.payload';
 
-export interface AuthTokens {
+export interface IAuthTokens {
   accessToken: string;
   refreshToken: string;
+  idToken: string;
 }
 
-export interface AuthenticatedUser {
+export interface IAuthenticatedUser {
   id: string;
   email: string;
   displayName: string;
   avatarUrl?: string;
 }
 
-export interface AuthLoginResponse {
-  tokens: AuthTokens;
-  user: AuthenticatedUser;
+export interface IAuthLoginResponse {
+  tokens: IAuthTokens;
+  user: IAuthenticatedUser;
 }
 
-export interface RefreshTokenResponse {
+export interface IRefreshTokenResponse {
   accessToken: string;
   refreshToken: string;
 }
 
-export interface LogoutResponse {
+export interface ILogoutResponse {
   success: boolean;
   message: string;
 }
 
-export interface ValidateTokenResponse {
+export interface IValidateTokenResponse {
   isValid: boolean;
   user?: JwtPayload;
+}
+
+export interface IExchangeCodeForTokenResponse {
+  accessToken: string;
+  idToken: string;
 }

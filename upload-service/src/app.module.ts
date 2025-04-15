@@ -1,15 +1,13 @@
-import { RmqClientsModule } from '@/rmq-clients.module';
-import { AuthModule } from '@/services/auth/auth.module';
-import { UploadModule } from '@/services/upload/upload.module';
+import { rabbitmqConfig } from '@/config';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
-    AuthModule,
-    RmqClientsModule,
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [rabbitmqConfig],
     }),
     UploadModule,
   ],

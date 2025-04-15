@@ -1,7 +1,10 @@
+import {
+  AuthClientProxy,
+  UploadClientProxy,
+  VideoClientProxy,
+} from '@/shared/clients';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-// import { AuthClientProxy } from './shared/clients/auth.client';
-import { AuthClientProxy } from '@/shared/clients/auth.client';
 
 @Module({
   imports: [ConfigModule],
@@ -11,7 +14,17 @@ import { AuthClientProxy } from '@/shared/clients/auth.client';
       useFactory: AuthClientProxy,
       inject: [ConfigService],
     },
+    {
+      provide: 'VIDEO_SERVICE',
+      useFactory: VideoClientProxy,
+      inject: [ConfigService],
+    },
+    {
+      provide: 'UPLOAD_SERVICE',
+      useFactory: UploadClientProxy,
+      inject: [ConfigService],
+    },
   ],
-  exports: ['AUTH_SERVICE'],
+  exports: ['AUTH_SERVICE', 'VIDEO_SERVICE', 'UPLOAD_SERVICE'],
 })
 export class RmqClientsModule {}

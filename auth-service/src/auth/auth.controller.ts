@@ -25,4 +25,9 @@ export class AuthController {
   async validateToken(data: { token: string }) {
     return this.authService.validateToken(data.token);
   }
+
+  @MessagePattern('auth_google_silent_callback')
+  async handleGoogleSilentCallback(data: { code: string }) {
+    return this.authService.handleGoogleSilentCallback(data.code);
+  }
 }

@@ -1,12 +1,12 @@
-name: Processing Service Build
+name: Upload Service Build
 
 on:
   pull_request:
     branches:
       - main
     paths:
-      - 'processing-service/**'
-      - '.github/workflows/processing-service-*.yml'
+      - "upload-service/**"
+      - ".github/workflows/upload-service-*.yml"
 
 permissions:
   contents: read
@@ -23,5 +23,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: cd processing-service && yarn install 
-      - run: cd processing-service && yarn build
+      - run: cd upload-service && yarn install
+      - run: cd upload-service && yarn build
