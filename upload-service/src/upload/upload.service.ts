@@ -104,7 +104,7 @@ export class UploadService {
 
   private generateObjectKey(fileName: string, userId: string): string {
     const uniqueId = uuidv4();
-    return `uploads/${userId}/${Date.now()}-${uniqueId}-${fileName}`;
+    return `uploads/${userId}/${uniqueId}`;
   }
 
   private async createPresignedUrl(
