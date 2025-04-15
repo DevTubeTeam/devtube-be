@@ -1,0 +1,58 @@
+name: Upload Service Dockerize
+
+on:
+  push:
+    tags:
+      - 'upload-service-v*'  # Example: upload-service-v1.2.3
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  dockerize:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Get short commit SHA
+        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Print short SHA
+        run: echo "Short SHA is $SHORT_SHA"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.ARN_BUILD_PUSH }}
+          role-session-name: github-actions
+          aws-region: ${{ secrets.ECR_PUBLIC_REGION }}
+
+      - name: Log in to Amazon ECR Public
+        env:
+          AWS_REGION: ${{ secrets.ECR_PUBLIC_REGION }}
+          ECR_PUBLIC_ALIAS: ${{ secrets.ECR_PUBLIC_ALIAS }}
+        run: |
+          aws ecr-public get-login-password --region $AWS_REGION \
+            | docker login --username AWS --password-stdin public.ecr.aws
+
+      - name: Create ECR repository if not exists
+        env:
+          AWS_REGION: ${{ secrets.ECR_PUBLIC_REGION }}
+          ECR_REPOSITORY: upload-service
+        run: |
+          aws ecr-public describe-repositories --repository-names "$ECR_REPOSITORY" --region "$AWS_REGION" \
+            || aws ecr-public create-repository --repository-name "$ECR_REPOSITORY" --region "$AWS_REGION"
+
+      - name: Build and push Docker image with tag from Git
+        env:
+          REPO_NAME: upload-service
+          ECR_PUBLIC_ALIAS: ${{ secrets.ECR_PUBLIC_ALIAS }}
+          TAG_NAME: ${{ github.ref_name }}  # e.g. upload-service-v1.2.3
+        run: |
+          VERSION=$(echo "$TAG_NAME" | sed 's/^upload-service-v//')
+          IMAGE_URI=public.ecr.aws/$ECR_PUBLIC_ALIAS/$REPO_NAME:v$VERSION-$SHORT_SHA
+          docker build -t $IMAGE_URI ./upload-service
+          docker push $IMAGE_URI
