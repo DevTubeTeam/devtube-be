@@ -8,6 +8,14 @@ BEGIN
   END IF;
 END$$;
 
+-- ENUM: token type
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'token_type') THEN
+    CREATE TYPE token_type AS ENUM ('access', 'refresh');
+  END IF;
+END$$;
+
 -- DROP nếu cần reset
 DROP TABLE IF EXISTS users;
 
@@ -28,7 +36,7 @@ CREATE TABLE users (
     role user_role DEFAULT 'user',               -- ✅ Role
     hashed_refresh_token TEXT,                   -- ✅ Để lưu refreshToken an toàn
 
-    -- Metadata & thời gian
+    -- Metadata & thời gia  n
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -79,10 +87,14 @@ CREATE TABLE likes (
 -- Thêm bảng revoked_tokens
 DROP TABLE IF EXISTS revoked_tokens;
 CREATE TABLE revoked_tokens (
-    id BIGSERIAL PRIMARY KEY,                    -- ID duy nhất
-    jti TEXT,                                    -- JWT ID (nếu sử dụng JWT)
-    user_id UUID,                                -- ID của người dùng
-    token_type TEXT NOT NULL,                    -- 'access' hoặc 'refresh'
-    expires_at TIMESTAMP NOT NULL,               -- Thời gian hết hạn của token
-    revoked_at TIMESTAMP DEFAULT NOW()           -- Thời gian token bị thu hồi
+    id BIGSERIAL PRIMARY KEY,
+    jti TEXT NOT NULL,
+    user_id UUID REFERENCES users(id),
+    token_type token_type NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    revoked_at TIMESTAMP DEFAULT NOW()
 );
+
+
+CREATE INDEX idx_revoked_tokens_jti ON revoked_tokens (jti);
+CREATE INDEX idx_revoked_tokens_user_id ON revoked_tokens (user_id);

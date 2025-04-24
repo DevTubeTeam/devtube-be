@@ -11,6 +11,7 @@ export interface IAuthenticatedUser {
   email: string;
   displayName: string;
   avatarUrl?: string;
+  role: string;
 }
 
 export interface IAuthLoginResponse {
