@@ -1,4 +1,4 @@
-import { rabbitmqConfig } from '@/config';
+import { config } from '@/config';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { UploadModule } from './upload/upload.module';
@@ -7,7 +7,7 @@ import { UploadModule } from './upload/upload.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [rabbitmqConfig],
+      load: [config],
     }),
     UploadModule,
   ],
