@@ -40,27 +40,6 @@ export class AuthController {
     );
   }
 
-  // @Get('silent')
-  // @ApiOperation({ summary: 'Redirect to Google silent login' })
-  // @ApiResponse({
-  //   status: 302,
-  //   description: 'Redirects to Google silent login page',
-  // })
-  // @Redirect()
-  // forwardSilentGoogleLogin(): { url: string; statusCode: number } {
-  //   const query = new URLSearchParams({
-  //     client_id: process.env.GOOGLE_CLIENT_ID!,
-  //     redirect_uri: process.env.GOOGLE_SILENT_REDIRECT_URI!,
-  //     response_type: 'code',
-  //     scope: 'openid email profile',
-  //     prompt: 'none',
-  //   });
-
-  //   return {
-  //     url: `https://accounts.google.com/o/oauth2/v2/auth?${query.toString()}`,
-  //     statusCode: 302,
-  //   };
-  // }
 
   @Get('silent/callback')
   @ApiOperation({ summary: 'Handle Google silent login callback' })
