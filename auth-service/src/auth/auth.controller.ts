@@ -17,8 +17,12 @@ export class AuthController {
   }
 
   @MessagePattern('auth_logout')
-  async logout(data: { userId: string }) {
-    return this.authService.logout(data.userId);
+  async logout(data: {
+    userId: string;
+    accessToken?: string;
+    refreshToken?: string;
+  }) {
+    return this.authService.logout(data);
   }
 
   @MessagePattern('auth_validate_token')
@@ -29,5 +33,10 @@ export class AuthController {
   @MessagePattern('auth_google_silent_callback')
   async handleGoogleSilentCallback(data: { code: string }) {
     return this.authService.handleGoogleSilentCallback(data.code);
+  }
+
+  @MessagePattern('auth_verify_id_token')
+  async verifyIdToken(data: { idToken: string }) {
+    return this.authService.verifyIdToken(data.idToken);
   }
 }

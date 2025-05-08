@@ -25,6 +25,6 @@ import { PassportModule } from '@nestjs/passport';
     RmqClientsModule,
   ],
   providers: [JwtStrategy, JwtAuthGuard],
-  exports: [JwtAuthGuard], // Xuất JwtAuthGuard để sử dụng ở các module khác
+  exports: [JwtAuthGuard],
 })
 export class AuthModule {}

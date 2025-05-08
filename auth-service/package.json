@@ -28,6 +28,7 @@
     "amqplib": "^0.10.7",
     "axios": "^1.8.4",
     "bcrypt": "^5.1.1",
+    "google-auth-library": "^9.15.1",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
