@@ -303,6 +303,8 @@ export class AuthService {
   async validateToken(accessToken: string): Promise<ServiceResponse<JwtPayload>> {
     const payload = this.jwtService.verifyAccessToken(accessToken);
 
+    this.logger.log('Validating access token', { payload });
+
     if (!payload) {
       throw new Error('Invalid token');
     }
