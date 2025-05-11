@@ -7,7 +7,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
   imports: [
-    ConfigModule, // <-- Thêm cái này nếu chưa có
+    ConfigModule,
     ClientsModule.registerAsync([
       {
         name: 'AUTH_SERVICE',
