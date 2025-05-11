@@ -17,11 +17,7 @@ export class AuthController {
   }
 
   @MessagePattern('auth_logout')
-  async logout(data: {
-    userId: string;
-    accessToken?: string;
-    refreshToken?: string;
-  }) {
+  async logout(data: { userId: string; accessToken?: string; refreshToken?: string }) {
     return this.authService.logout(data);
   }
 

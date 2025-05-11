@@ -3,6 +3,7 @@ import { RmqClientsModule } from '@/rmq-clients.module';
 import { AuthController } from '@/services/auth/auth.controller';
 import { JwtAuthGuard } from '@/services/auth/guards/jwt-auth.guard';
 import { JwtStrategy } from '@/services/auth/strategies/jwt.strategy';
+import { LoggerService } from '@/shared/utils/logger.service';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -24,7 +25,11 @@ import { PassportModule } from '@nestjs/passport';
     ConfigModule.forFeature(jwtConfig),
     RmqClientsModule,
   ],
-  providers: [JwtStrategy, JwtAuthGuard],
+  providers: [
+    JwtStrategy,
+    JwtAuthGuard,
+    { provide: LoggerService, useValue: new LoggerService('AuthGateway') },
+  ],
   exports: [JwtAuthGuard],
 })
 export class AuthModule {}

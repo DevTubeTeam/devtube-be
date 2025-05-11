@@ -1,6 +1,5 @@
-import { GlobalResponse } from '../types/global-response.type';
 
-export function success<T>(data: T, message = 'Thành công'): GlobalResponse<T> {
+export function success<T>(data: T, message = 'Thành công'): ServiceResponse<T> {
   return {
     statusCode: 200,
     message,
@@ -8,7 +7,7 @@ export function success<T>(data: T, message = 'Thành công'): GlobalResponse<T>
   };
 }
 
-export function fail(message: string, statusCode = 400): GlobalResponse<null> {
+export function fail(message: string, statusCode = 400): ServiceResponse<null> {
   return {
     statusCode,
     message,
