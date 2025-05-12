@@ -298,7 +298,7 @@ export class UploadService {
     fileName: string,
     userId: string,
   ): Promise<ServiceResponse<ISinglePresignedUrlResponse>> {
-    console.log("Generating presigned URL for single file upload: ", userId, fileName, fileType, key);
+    this.logger.log(`Generating presigned URL for single file upload: ${userId}, ${fileName}, ${fileType}, ${key}`);
 
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
