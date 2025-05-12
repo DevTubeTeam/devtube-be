@@ -1,7 +1,7 @@
-import { IMultipartPresignedUrlResponse, IPresignedUrlRequest, ISinglePresignedUrlResponse, ITemporaryCredential } from '@/upload/interfaces';
+import { IAbortMultipartUploadRequest, IDeleteObjectDataRequest, IMultipartPresignedUrlResponse, IPresignedUrlRequest, ISinglePresignedUrlResponse, ITemporaryCredential } from '@/upload/interfaces';
 import { isMimeTypeAllowed } from '@/utils';
 import { LoggerService } from '@/utils/logger.service';
-import { CompleteMultipartUploadCommand, CreateMultipartUploadCommand, PutObjectCommand, S3Client, UploadPartCommand } from '@aws-sdk/client-s3';
+import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMultipartUploadCommand, DeleteObjectCommand, PutObjectCommand, S3Client, UploadPartCommand } from '@aws-sdk/client-s3';
 import { AssumeRoleWithWebIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
@@ -31,76 +31,71 @@ export class UploadService {
   }
 
   /**
-   * Tạo URL ký sẵn để tải tệp lên S3, hỗ trợ cả tải đơn (single upload) và tải nhiều phần (multipart upload).
-   * @param dto - Dữ liệu yêu cầu chứa fileName, fileType, idToken, và fileSize.
-   * @returns ServiceResponse chứa URL ký sẵn hoặc thông báo lỗi.
-   * @throws UnauthorizedException nếu idToken không hợp lệ.
-   * @throws Error nếu thao tác với S3 hoặc STS thất bại.
+   * Generates a presigned URL for uploading a file to S3.
+   * @param dto - The request data containing file details and user token.
+   * @returns A service response with the presigned URL or an error message.
    */
   async generatePresignedUrl(dto: IPresignedUrlRequest): Promise<ServiceResponse<ISinglePresignedUrlResponse | IMultipartPresignedUrlResponse>> {
     const { fileName, fileType, idToken, fileSize } = dto;
 
     this.logger.log(`Generating presigned URL for ${fileName}`);
 
-    // Xác thực idToken
     await this.verifyIdToken(idToken);
 
-    // Kiểm tra MIME type
     if (!isMimeTypeAllowed(fileType)) {
-      this.logger.warn(`Invalid MIME type: ${fileType}`);
       return this.errorResponse(400, 'Invalid file type');
     }
 
-    // Validate fileSize
     if (fileSize <= 0) {
-      this.logger.warn(`Invalid file size: ${fileSize}`);
       return this.errorResponse(400, 'File size must be positive');
     }
 
     try {
-      const userId = this.getUserIdFromToken(idToken);
+      // const userId = this.getUserIdFromToken(idToken);
+      const userId = dto.userId;
       const credentials = await this.getTemporaryCredentials(idToken);
       const s3Client = this.createS3Client(credentials);
       const key = this.generateObjectKey(userId);
 
-      if (fileSize <= this.MULTIPART_THRESHOLD) {
-        return await this.generateSinglePresignedUrl(s3Client, key, fileType, fileName, userId);
-      } else {
-        const partCount = Math.ceil(fileSize / this.PART_SIZE);
-        if (partCount > 10000) {
-          const maxFileSize = this.PART_SIZE * 10000; // Maximum file size in bytes
-          const maxFileSizeInGB = (maxFileSize / (1024 * 1024 * 1024)).toFixed(2); // Convert to GB
-          return this.errorResponse(400, `File too large, exceeds part count limit. Maximum allowed file size is ${maxFileSizeInGB} GB`);
-        }
-        return await this.generateMultipartPresignedUrls(s3Client, key, fileType, fileName, userId, partCount);
-      }
+      return fileSize <= this.MULTIPART_THRESHOLD
+        ? await this.generateSinglePresignedUrl(s3Client, key, fileType, fileName, userId)
+        : await this.handleMultipartUpload(s3Client, key, fileType, fileName, userId, fileSize);
     } catch (error) {
-      return this.handleError(error, 'Failed to generate presigned URL');
+      return this.handleError(error, error.message);
     }
   }
 
   /**
-   * Hoàn tất quá trình tải tệp nhiều phần lên S3 bằng cách kết hợp các phần đã tải.
-   * @param dto - Dữ liệu yêu cầu chứa key, uploadId, parts, và idToken.
-   * @returns ServiceResponse cho biết thành công hoặc thông báo lỗi.
-   * @throws UnauthorizedException nếu idToken không hợp lệ.
-   * @throws Error nếu thao tác với S3 thất bại.
+   * Handles the multipart upload process by generating presigned URLs for each part.
+   * @param s3Client - The S3 client instance.
+   * @param key - The S3 object key.
+   * @param fileType - The MIME type of the file.
+   * @param fileName - The original file name.
+   * @param userId - The ID of the user uploading the file.
+   * @param fileSize - The size of the file.
+   * @returns A service response with multipart presigned URLs or an error message.
    */
-  async completeMultipartUpload(dto: {
-    key: string;
-    uploadId: string;
-    parts: { ETag: string; PartNumber: number }[];
-    idToken: string;
-  }): Promise<ServiceResponse<null>> {
+  private async handleMultipartUpload(s3Client: S3Client, key: string, fileType: string, fileName: string, userId: string, fileSize: number) {
+    const partCount = Math.ceil(fileSize / this.PART_SIZE);
+    if (partCount > 10000) {
+      const maxFileSizeInGB = ((this.PART_SIZE * 10000) / (1024 * 1024 * 1024)).toFixed(2);
+      return this.errorResponse(400, `File too large, exceeds part count limit. Maximum allowed file size is ${maxFileSizeInGB} GB`);
+    }
+    return await this.generateMultipartPresignedUrls(s3Client, key, fileType, fileName, userId, partCount);
+  }
+
+  /**
+   * Completes a multipart upload by sending a request to S3 with the parts information.
+   * @param dto - The request data containing upload details and user token.
+   * @returns A service response indicating success or failure.
+   */
+  async completeMultipartUpload(dto: { key: string; uploadId: string; parts: { ETag: string; PartNumber: number }[]; idToken: string; }): Promise<ServiceResponse<null>> {
     const { key, uploadId, parts, idToken } = dto;
     this.logger.log(`Completing multipart upload for key: ${key}`);
 
-    // Validate idToken
     await this.verifyIdToken(idToken);
 
-    // Validate parts
     if (!parts.length || parts.some((p) => p.PartNumber < 1 || !p.ETag)) {
-      this.logger.warn('Invalid parts data', { parts });
       return this.errorResponse(400, 'Invalid parts data');
     }
 
@@ -108,59 +103,123 @@ export class UploadService {
       const credentials = await this.getTemporaryCredentials(idToken);
       const s3Client = this.createS3Client(credentials);
 
-      await s3Client.send(
-        new CompleteMultipartUploadCommand({
-          Bucket: this.bucketName,
-          Key: key,
-          UploadId: uploadId,
-          MultipartUpload: { Parts: parts },
-        }),
-      );
+      this.logger.log(`Sending CompleteMultipartUploadCommand to S3 for key: ${key}`, {
+        bucket: this.bucketName,
+        uploadId,
+        partsCount: parts.length
+      });
 
-      this.logger.log(`Multipart upload completed for key: ${key}`);
-      return {
-        statusCode: 200,
-        message: 'Multipart upload completed successfully',
-        data: null,
-      };
-    } catch (error) {
+      const sortedParts = parts
+        .slice()
+        .sort((a, b) => a.PartNumber - b.PartNumber);
+
+      const result = await s3Client.send(new CompleteMultipartUploadCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: sortedParts },
+      }));
+
+      this.logger.log("CompleteMultipartUploadCommand sent to S3", result);
+
+      this.logger.log(`S3 CompleteMultipartUpload successful for key: ${key}`, {
+        eTag: result.ETag,
+        location: result.Location
+      });
+
+      return this.successResponse(200, 'Multipart upload completed successfully', null);
+    } catch (error: any) {
+      this.logger.error('S3 CompleteMultipartUpload FAILED:', {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        metadata: error.$metadata,
+        stack: error.stack
+      });
       return this.handleError(error, 'Failed to complete multipart upload');
     }
   }
 
   /**
-   * Xác thực idToken bằng cách gọi auth-service.
-   * @param idToken - Token JWT cần xác thực.
-   * @returns Dữ liệu người dùng từ auth-service.
-   * @throws UnauthorizedException nếu xác thực thất bại.
+   * Aborts a multipart upload by sending a request to S3.
+   * @param dto - The request data containing upload details and user token.
+   * @returns A service response indicating success or failure.
+   */
+  async abortMultipartUpload(dto: IAbortMultipartUploadRequest): Promise<ServiceResponse<null>> {
+    const { key, uploadId, idToken } = dto;
+    this.logger.log(`Aborting multipart upload for key: ${key}`);
+
+    await this.verifyIdToken(idToken);
+
+    try {
+      const credentials = await this.getTemporaryCredentials(idToken);
+      const s3Client = this.createS3Client(credentials);
+
+      await s3Client.send(new AbortMultipartUploadCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        UploadId: uploadId,
+      }));
+
+      return this.successResponse(200, 'Multipart upload aborted successfully', null);
+    } catch (error) {
+      return this.handleError(error, error.message);
+    }
+  }
+
+  /**
+   * Deletes an object from S3.
+   * @param dto - The request data containing object details and user token.
+   * @returns A service response indicating success or failure.
+   */
+  async deleteObject(dto: IDeleteObjectDataRequest): Promise<ServiceResponse<null>> {
+    const { key, idToken } = dto;
+    this.logger.log(`Deleting object for key: ${key}`);
+
+    await this.verifyIdToken(idToken);
+
+    try {
+      const credentials = await this.getTemporaryCredentials(idToken);
+      const s3Client = this.createS3Client(credentials);
+
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      }));
+
+      return this.successResponse(200, 'Object deleted successfully', null);
+    } catch (error) {
+      return this.handleError(error, error.message);
+    }
+  }
+
+  /**
+   * Verifies the ID token by sending it to the authentication service.
+   * @param idToken - The ID token to verify.
+   * @returns The user data if the token is valid.
+   * @throws UnauthorizedException if the token is invalid or verification fails.
    */
   private async verifyIdToken(idToken: string): Promise<any> {
     try {
       const authResult = await lastValueFrom(this.authClient.send('auth_verify_id_token', { idToken }));
 
-      this.logger.log('Auth result from auth-service', { authResult });
-
       if (authResult.statusCode !== 200 || !authResult.data?.user) {
-        this.logger.error('Invalid idToken response from auth-service', { authResult });
         throw new UnauthorizedException('Invalid idToken');
       }
 
       return authResult.data.user;
     } catch (error) {
-      this.logger.error('Failed to verify idToken', { error });
       throw new UnauthorizedException('Failed to verify idToken');
     }
   }
 
   /**
-   * Lấy thông tin xác thực tạm thời từ AWS STS bằng idToken.
-   * @param idToken - Token JWT dùng để xác thực.
-   * @returns Thông tin xác thực tạm thời (accessKeyId, secretAccessKey, sessionToken).
-   * @throws Error nếu yêu cầu STS thất bại.
+   * Retrieves temporary AWS credentials using the ID token.
+   * @param idToken - The ID token for authentication.
+   * @returns The temporary AWS credentials.
+   * @throws Error if the credentials cannot be retrieved.
    */
   private async getTemporaryCredentials(idToken: string): Promise<ITemporaryCredential> {
-    this.logger.log('Fetching temporary credentials from STS');
-
     const stsClient = new STSClient({ region: this.awsRegion });
     const command = new AssumeRoleWithWebIdentityCommand({
       RoleArn: this.roleArn,
@@ -180,18 +239,16 @@ export class UploadService {
         sessionToken: creds.SessionToken!,
       };
     } catch (error) {
-      this.logger.error('Failed to fetch STS credentials', { error });
       throw error;
     }
   }
 
   /**
-   * Tạo một instance của S3 client với thông tin xác thực cung cấp.
-   * @param credentials - Thông tin xác thực tạm thời của AWS.
-   * @returns Một instance của S3Client.
+   * Creates an S3 client using the provided temporary credentials.
+   * @param credentials - The temporary AWS credentials.
+   * @returns An instance of S3Client.
    */
   private createS3Client(credentials: ITemporaryCredential): S3Client {
-    this.logger.log('Creating S3 client');
     return new S3Client({
       region: this.awsRegion,
       credentials: {
@@ -203,40 +260,36 @@ export class UploadService {
   }
 
   /**
-   * Trích xuất ID người dùng từ idToken cung cấp.
-   * @param idToken - Token JWT cần giải mã.
-   * @returns ID người dùng (sub) hoặc 'anonymous' nếu giải mã thất bại.
+   * Extracts the user ID from the ID token.
+   * @param idToken - The ID token containing user information.
+   * @returns The user ID or 'anonymous' if not found.
    */
   private getUserIdFromToken(idToken: string): string {
-    this.logger.log('Decoding idToken to extract userId');
     try {
       const decoded = decode(idToken) as { sub?: string };
       return decoded?.sub || 'anonymous';
-    } catch (error) {
-      this.logger.error('Failed to decode idToken', { error });
+    } catch {
       return 'anonymous';
     }
   }
 
   /**
-   * Tạo một key đối tượng S3 duy nhất cho tệp.
-   * @param userId - ID của người dùng tải tệp lên.
-   * @returns Key đối tượng duy nhất theo định dạng `Uploads/{userId}/{uuid}`.
+   * Generates a unique S3 object key for the uploaded file.
+   * @param userId - The ID of the user uploading the file.
+   * @returns A unique object key.
    */
   private generateObjectKey(userId: string): string {
-    const uniqueId = uuidv4();
-    this.logger.log('Generated object key', { userId, uniqueId });
-    return `uploads/${userId}/${uniqueId}`;
+    return `uploads/${uuidv4()}`;
   }
 
   /**
-   * Tạo URL ký sẵn cho việc tải tệp đơn lên S3.
-   * @param s3Client - Instance của S3 client.
-   * @param key - Key đối tượng S3.
-   * @param fileType - Kiểu MIME của tệp.
-   * @param fileName - Tên gốc của tệp.
-   * @param userId - ID của người dùng tải tệp lên.
-   * @returns ServiceResponse chứa URL ký sẵn.
+   * Generates a presigned URL for a single file upload.
+   * @param s3Client - The S3 client instance.
+   * @param key - The S3 object key.
+   * @param fileType - The MIME type of the file.
+   * @param fileName - The original file name.
+   * @param userId - The ID of the user uploading the file.
+   * @returns A service response with the presigned URL.
    */
   private async generateSinglePresignedUrl(
     s3Client: S3Client,
@@ -245,38 +298,45 @@ export class UploadService {
     fileName: string,
     userId: string,
   ): Promise<ServiceResponse<ISinglePresignedUrlResponse>> {
-    this.logger.log('Generating single presigned URL', { key, fileType });
+    this.logger.log(`Generating presigned URL for single file upload: ${userId}, ${fileName}, ${fileType}, ${key}`);
 
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
       ContentType: fileType,
-      Metadata: {
-        'original-name': fileName,
-        'uploaded-by': userId,
-      },
-      ContentDisposition: `attachment; filename="${fileName}"`,
+      // Metadata: {
+      //   'original-name': fileName,
+      //   'uploaded-by': userId,
+      // },
+      // ContentDisposition: `attachment; filename="${fileName}"`,
     });
 
-    const url = await getSignedUrl(s3Client, command, { expiresIn: this.PRESIGNED_URL_EXPIRY });
-    this.logger.log('Single presigned URL generated', { url });
+    this.logger.log(`Generating presigned URL for ${fileName}`);
 
-    return {
-      statusCode: 200,
-      message: 'Presigned URL generated successfully',
-      data: { presignedUrl: url, key, bucketName: this.bucketName },
-    };
+    // Generate presigned URL without specifying signableHeaders to let AWS SDK handle it properly
+    const url = await getSignedUrl(s3Client, command, {
+      expiresIn: this.PRESIGNED_URL_EXPIRY
+    });
+
+    this.logger.log('Presigned URL generated successfully');
+
+    // Return the response with the URL and other necessary information
+    return this.successResponse(200, 'Presigned URL generated successfully', {
+      presignedUrl: url,
+      key,
+      bucketName: this.bucketName
+    });
   }
 
   /**
-   * Tạo các URL ký sẵn cho việc tải tệp nhiều phần lên S3.
-   * @param s3Client - Instance của S3 client.
-   * @param key - Key đối tượng S3.
-   * @param fileType - Kiểu MIME của tệp.
-   * @param fileName - Tên gốc của tệp.
-   * @param userId - ID của người dùng tải tệp lên.
-   * @param partCount - Số lượng phần của quá trình tải nhiều phần.
-   * @returns ServiceResponse chứa chi tiết tải nhiều phần.
+   * Generates presigned URLs for each part of a multipart upload.
+   * @param s3Client - The S3 client instance.
+   * @param key - The S3 object key.
+   * @param fileType - The MIME type of the file.
+   * @param fileName - The original file name.
+   * @param userId - The ID of the user uploading the file.
+   * @param partCount - The number of parts in the upload.
+   * @returns A service response with multipart presigned URLs.
    */
   private async generateMultipartPresignedUrls(
     s3Client: S3Client,
@@ -286,18 +346,16 @@ export class UploadService {
     userId: string,
     partCount: number,
   ): Promise<ServiceResponse<IMultipartPresignedUrlResponse>> {
-    this.logger.log('Generating multipart presigned URLs', { key, partCount });
-
     const { UploadId } = await s3Client.send(
       new CreateMultipartUploadCommand({
         Bucket: this.bucketName,
         Key: key,
         ContentType: fileType,
-        Metadata: {
-          'original-name': fileName,
-          'uploaded-by': userId,
-        },
-        ContentDisposition: `attachment; filename="${fileName}"`,
+        // Metadata: {
+        //   'original-name': fileName,
+        //   'uploaded-by': userId,
+        // },
+        // ContentDisposition: `attachment; filename="${fileName}"`,
       }),
     );
 
@@ -314,37 +372,42 @@ export class UploadService {
       }),
     );
 
-    this.logger.log(`Generated ${partCount} multipart URLs`, { key });
-    return {
-      statusCode: 200,
-      message: 'Multipart presigned URLs generated successfully',
-      data: {
-        uploadId: UploadId!,
-        key,
-        bucketName: this.bucketName,
-        presignedUrls,
-      },
-    };
+    return this.successResponse(200, 'Multipart presigned URLs generated successfully', {
+      uploadId: UploadId!,
+      key,
+      bucketName: this.bucketName,
+      presignedUrls,
+    });
   }
 
   /**
-   * Tạo phản hồi lỗi với mã trạng thái và thông điệp được chỉ định.
-   * @param statusCode - Mã trạng thái HTTP.
-   * @param message - Thông điệp lỗi.
-   * @returns ServiceResponse chứa chi tiết lỗi.
+   * Constructs a successful service response.
+   * @param statusCode - The HTTP status code.
+   * @param message - The response message.
+   * @param data - The response data.
+   * @returns A service response object.
+   */
+  private successResponse(statusCode: number, message: string, data: any): ServiceResponse<any> {
+    return { statusCode, message, data };
+  }
+
+  /**
+   * Constructs an error service response.
+   * @param statusCode - The HTTP status code.
+   * @param message - The error message.
+   * @returns A service response object with null data.
    */
   private errorResponse(statusCode: number, message: string): ServiceResponse<null> {
     return { statusCode, message, data: null };
   }
 
   /**
-   * Xử lý lỗi và trả về phản hồi lỗi chuẩn hóa.
-   * @param error - Đối tượng lỗi.
-   * @param defaultMessage - Thông điệp lỗi mặc định.
-   * @returns ServiceResponse chứa chi tiết lỗi.
+   * Handles errors and constructs an appropriate service response.
+   * @param error - The error object.
+   * @param defaultMessage - The default error message.
+   * @returns A service response object with an error message.
    */
   private handleError(error: any, defaultMessage: string): ServiceResponse<null> {
-    this.logger.error(defaultMessage, { error });
     if (error.name === 'STSServiceException') {
       return this.errorResponse(403, 'Failed to authenticate with STS');
     }
