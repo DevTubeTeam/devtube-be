@@ -16,4 +16,8 @@ export class GetPresignedUrlDto {
   @IsNumber()
   @Min(1)
   fileSize: number;
+
+  @IsString()
+  @IsNotEmpty()
+  userId: string;
 }

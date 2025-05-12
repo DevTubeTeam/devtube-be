@@ -51,7 +51,8 @@ export class UploadService {
     }
 
     try {
-      const userId = this.getUserIdFromToken(idToken);
+      // const userId = this.getUserIdFromToken(idToken);
+      const userId = dto.userId;
       const credentials = await this.getTemporaryCredentials(idToken);
       const s3Client = this.createS3Client(credentials);
       const key = this.generateObjectKey(userId);
@@ -102,16 +103,40 @@ export class UploadService {
       const credentials = await this.getTemporaryCredentials(idToken);
       const s3Client = this.createS3Client(credentials);
 
-      await s3Client.send(new CompleteMultipartUploadCommand({
+      this.logger.log(`Sending CompleteMultipartUploadCommand to S3 for key: ${key}`, {
+        bucket: this.bucketName,
+        uploadId,
+        partsCount: parts.length
+      });
+
+      const sortedParts = parts
+        .slice()
+        .sort((a, b) => a.PartNumber - b.PartNumber);
+
+      const result = await s3Client.send(new CompleteMultipartUploadCommand({
         Bucket: this.bucketName,
         Key: key,
         UploadId: uploadId,
-        MultipartUpload: { Parts: parts },
+        MultipartUpload: { Parts: sortedParts },
       }));
 
+      this.logger.log("CompleteMultipartUploadCommand sent to S3", result);
+
+      this.logger.log(`S3 CompleteMultipartUpload successful for key: ${key}`, {
+        eTag: result.ETag,
+        location: result.Location
+      });
+
       return this.successResponse(200, 'Multipart upload completed successfully', null);
-    } catch (error) {
-      return this.handleError(error, error.message);
+    } catch (error: any) {
+      this.logger.error('S3 CompleteMultipartUpload FAILED:', {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        metadata: error.$metadata,
+        stack: error.stack
+      });
+      return this.handleError(error, 'Failed to complete multipart upload');
     }
   }
 
@@ -254,7 +279,7 @@ export class UploadService {
    * @returns A unique object key.
    */
   private generateObjectKey(userId: string): string {
-    return `uploads/${userId}/${uuidv4()}`;
+    return `uploads/${uuidv4()}`;
   }
 
   /**
@@ -273,20 +298,34 @@ export class UploadService {
     fileName: string,
     userId: string,
   ): Promise<ServiceResponse<ISinglePresignedUrlResponse>> {
+    console.log("Generating presigned URL for single file upload: ", userId, fileName, fileType, key);
+
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
       ContentType: fileType,
-      Metadata: {
-        'original-name': fileName,
-        'uploaded-by': userId,
-      },
-      ContentDisposition: `attachment; filename="${fileName}"`,
+      // Metadata: {
+      //   'original-name': fileName,
+      //   'uploaded-by': userId,
+      // },
+      // ContentDisposition: `attachment; filename="${fileName}"`,
     });
 
-    const url = await getSignedUrl(s3Client, command, { expiresIn: this.PRESIGNED_URL_EXPIRY });
+    this.logger.log(`Generating presigned URL for ${fileName}`);
 
-    return this.successResponse(200, 'Presigned URL generated successfully', { presignedUrl: url, key, bucketName: this.bucketName });
+    // Generate presigned URL without specifying signableHeaders to let AWS SDK handle it properly
+    const url = await getSignedUrl(s3Client, command, {
+      expiresIn: this.PRESIGNED_URL_EXPIRY
+    });
+
+    this.logger.log('Presigned URL generated successfully');
+
+    // Return the response with the URL and other necessary information
+    return this.successResponse(200, 'Presigned URL generated successfully', {
+      presignedUrl: url,
+      key,
+      bucketName: this.bucketName
+    });
   }
 
   /**
@@ -312,11 +351,11 @@ export class UploadService {
         Bucket: this.bucketName,
         Key: key,
         ContentType: fileType,
-        Metadata: {
-          'original-name': fileName,
-          'uploaded-by': userId,
-        },
-        ContentDisposition: `attachment; filename="${fileName}"`,
+        // Metadata: {
+        //   'original-name': fileName,
+        //   'uploaded-by': userId,
+        // },
+        // ContentDisposition: `attachment; filename="${fileName}"`,
       }),
     );
 

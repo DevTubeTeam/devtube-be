@@ -3,6 +3,7 @@ export interface IPresignedUrlRequest {
   fileType: string;
   idToken: string;
   fileSize: number;
+  userId: string;
 }
 
 export interface ISinglePresignedUrlResponse {
